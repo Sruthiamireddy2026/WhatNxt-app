@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>What Nxt</title>
+
+  <!-- ─────────────────────────────────────────────
+       GLOBAL STYLES
+       Defines the color palette, typography, card
+       shadows, and mobile-first layout used throughout.
+  ───────────────────────────────────────────────── -->
+  <style>
+    /* ---------- Reset & base ---------- */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #F7F8FA;
+      color: #1A1A2E;
+      min-height: 100vh;
+    }
+
+    /* ---------- Header ---------- */
+    /* Full-width orange banner with the app name and tagline */
+    .header {
+      background: #FF6B35;
+      padding: 24px 20px 20px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(255,107,53,0.25);
+    }
+
+    .header h1 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: #FFFFFF;
+      letter-spacing: -0.5px;
+      line-height: 1;
+    }
+
+    .header .tagline {
+      margin-top: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: rgba(255,255,255,0.85);
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+    }
+
+    .header .sub-tagline {
+      margin-top: 3px;
+      font-size: 0.78rem;
+      color: rgba(255,255,255,0.7);
+      font-style: italic;
+    }
+
+    /* ---------- Main content area ---------- */
+    .container {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 20px 16px 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* ---------- Priority section ---------- */
+    /* Each colored band groups cards by urgency level */
+    .section {
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      font-weight: 700;
+      font-size: 0.82rem;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: #FFFFFF;
+    }
+
+    .section-header .label { display: flex; align-items: center; gap: 7px; }
+
+    /* Done-count badge shown when items are completed */
+    .done-count {
+      font-size: 0.72rem;
+      font-weight: 600;
+      background: rgba(255,255,255,0.25);
+      padding: 2px 8px;
+      border-radius: 20px;
+      white-space: nowrap;
+      opacity: 0;          /* hidden until at least 1 item is done */
+      transition: opacity 0.2s;
+    }
+    .done-count.visible { opacity: 1; }
+
+    /* Accent colours per priority level */
+    .section--now   .section-header { background: #E63946; }
+    .section--today .section-header { background: #F4A022; }
+    .section--wait  .section-header { background: #2A9D5C; }
+
+    /* Left border stripe on cards mirrors the section accent */
+    .section--now   .card { border-left: 4px solid #E63946; }
+    .section--today .card { border-left: 4px solid #F4A022; }
+    .section--wait  .card { border-left: 4px solid #2A9D5C; }
+
+    /* ---------- Message card ---------- */
+    /* White card with subtle shadow; sits inside a section */
+    .card {
+      background: #FFFFFF;
+      padding: 14px 14px 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: background 0.25s, opacity 0.25s;
+    }
+
+    /* Thin divider between sibling cards */
+    .card + .card { border-top: 1px solid #F0F0F0; }
+
+    /* ---- Card content (left side) ---- */
+    .card-content { flex: 1; min-width: 0; }
+
+    .card-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 3px;
+    }
+
+    .sender {
+      font-weight: 700;
+      font-size: 0.88rem;
+      color: #1A1A2E;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: color 0.25s;
+    }
+
+    /* Source-type pill: Email / Slack / Text */
+    .tag {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      padding: 2px 7px;
+      border-radius: 20px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .tag--email { background: #E8F4FD; color: #1A6FA3; }
+    .tag--text  { background: #FFF0F3; color: #C0392B; }
+    .tag--slack { background: #F0E6FF; color: #6B21A8; }
+
+    .subject {
+      font-weight: 600;
+      font-size: 0.84rem;
+      color: #2D2D3A;
+      margin-bottom: 2px;
+      transition: color 0.25s;
+    }
+
+    .preview {
+      font-size: 0.78rem;
+      color: #7A7A8C;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: color 0.25s;
+    }
+
+    /* ---- Done state styles ---- */
+    /* Applied via JS when the Done button is clicked */
+    .card.done {
+      background: #F5F5F5;
+      opacity: 0.72;
+    }
+    .card.done .sender,
+    .card.done .subject { text-decoration: line-through; color: #AAAAAA; }
+    .card.done .preview { color: #BBBBBB; }
+
+    /* ---- Done / Undo button (right side) ---- */
+    .btn-done {
+      flex-shrink: 0;
+      padding: 6px 12px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      border: none;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      white-space: nowrap;
+    }
+    .btn-done:active { transform: scale(0.95); }
+
+    /* Green Done button */
+    .btn-done.state-done {
+      background: #2A9D5C;
+      color: #FFFFFF;
+    }
+    .btn-done.state-done:hover { background: #228B4F; }
+
+    /* Grey Undo button */
+    .btn-done.state-undo {
+      background: #D0D0D0;
+      color: #555555;
+    }
+    .btn-done.state-undo:hover { background: #BBBBBB; }
+
+    /* ---------- Responsive tweak ---------- */
+    @media (max-width: 420px) {
+      .header h1     { font-size: 1.8rem; }
+      .card          { padding: 12px 10px 12px 14px; gap: 8px; }
+      .btn-done      { padding: 5px 10px; font-size: 0.70rem; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ═══════════════════════════════════════════
+       HEADER
+       Brand bar at the top of every screen.
+       Displays the app name and dual tagline.
+  ════════════════════════════════════════════ -->
+  <header class="header">
+    <h1>What Nxt</h1>
+    <p class="tagline">Noise vs Signal</p>
+    <p class="sub-tagline">You Decide What Matters</p>
+  </header>
+
+  <!-- ═══════════════════════════════════════════
+       PRIORITY DASHBOARD
+       Three stacked sections rendered by the JS
+       buildSection() helper below.
+  ════════════════════════════════════════════ -->
+  <main class="container" id="dashboard"></main>
+
+
+  <!-- ═══════════════════════════════════════════
+       JAVASCRIPT
+       ─────────────────────────────────────────
+       DATA: defines the three priority buckets
+         and the sample messages inside each.
+
+       buildSection(): creates the section header,
+         done-count badge, and all message cards
+         for one priority bucket and injects them
+         into the dashboard.
+
+       toggleDone(): handles Done ↔ Undo clicks —
+         adds/removes the .done class on the card,
+         swaps button text/style, and refreshes the
+         done-count badge in the section header.
+  ════════════════════════════════════════════ -->
+  <script>
+    /* ── DATA ───────────────────────────────── */
+    const priorities = [
+      {
+        id: "now",
+        emoji: "🔴",
+        label: "Do Now",
+        messages: [
+          {
+            sender:  "School Nurse",
+            subject: "Jake has a fever — please call",
+            preview: "Hi, this is Nurse Rivera. Jake came to my office at 10:15am with a fever of 101.3…",
+            type:    "text"
+          },
+          {
+            sender:  "Dr. Smith's Office",
+            subject: "Appointment Reminder — TODAY 2:00 PM",
+            preview: "Friendly reminder: you have an appointment scheduled for today at 2:00 PM. Please call…",
+            type:    "email"
+          }
+        ]
+      },
+      {
+        id: "today",
+        emoji: "🟡",
+        label: "Do Today",
+        messages: [
+          {
+            sender:  "Coach Rivera",
+            subject: "Practice moved to 4 PM Friday",
+            preview: "Hey team parents — due to field maintenance, Friday's practice is now at 4 PM instead of…",
+            type:    "text"
+          },
+          {
+            sender:  "Kohl's",
+            subject: "30% off today only! Your saved items",
+            preview: "You left some great things in your cart. Today only: take 30% off everything with code…",
+            type:    "email"
+          }
+        ]
+      },
+      {
+        id: "wait",
+        emoji: "🟢",
+        label: "Can Wait",
+        messages: [
+          {
+            sender:  "HOA Newsletter",
+            subject: "Spring Community Updates",
+            preview: "Lawn care reminders, the pool opens May 15, and the annual potluck is June 7. See full…",
+            type:    "email"
+          },
+          {
+            sender:  "Amazon",
+            subject: "Your order has shipped!",
+            preview: "Good news — your package is on its way and should arrive by Thursday. Track your shipment…",
+            type:    "email"
+          }
+        ]
+      }
+    ];
+
+    /* ── BUILD SECTION ──────────────────────── */
+    /*
+      Creates one priority band (header + cards) and
+      appends it to the #dashboard element.
+      Returns nothing — DOM mutation is the side-effect.
+    */
+    function buildSection({ id, emoji, label, messages }) {
+      const section = document.createElement("section");
+      section.className = `section section--${id}`;
+      section.dataset.id = id;
+
+      /* Header row -------------------------------- */
+      const header = document.createElement("div");
+      header.className = "section-header";
+      header.innerHTML = `
+        <span class="label">
+          <span>${emoji}</span>
+          <span>${label}</span>
+        </span>
+        <span class="done-count" id="count-${id}"></span>
+      `;
+      section.appendChild(header);
+
+      /* Cards ------------------------------------- */
+      messages.forEach((msg, index) => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.dataset.section = id;
+        card.dataset.index   = index;
+
+        card.innerHTML = `
+          <div class="card-content">
+            <div class="card-meta">
+              <span class="sender">${msg.sender}</span>
+              <span class="tag tag--${msg.type}">${msg.type.charAt(0).toUpperCase() + msg.type.slice(1)}</span>
+            </div>
+            <div class="subject">${msg.subject}</div>
+            <div class="preview">${msg.preview}</div>
+          </div>
+          <button
+            class="btn-done state-done"
+            onclick="toggleDone(this)"
+            aria-label="Mark as done"
+          >✅ Done</button>
+        `;
+
+        section.appendChild(card);
+      });
+
+      document.getElementById("dashboard").appendChild(section);
+    }
+
+    /* ── TOGGLE DONE ────────────────────────── */
+    /*
+      Called when any Done / Undo button is clicked.
+      Toggles the .done class on the parent card,
+      flips the button between its two states,
+      then refreshes the section's done-count badge.
+    */
+    function toggleDone(btn) {
+      const card      = btn.closest(".card");
+      const sectionId = card.dataset.section;
+      const isDone    = card.classList.toggle("done");
+
+      if (isDone) {
+        btn.textContent = "↩ Undo";
+        btn.classList.replace("state-done", "state-undo");
+        btn.setAttribute("aria-label", "Undo — mark as not done");
+      } else {
+        btn.textContent = "✅ Done";
+        btn.classList.replace("state-undo", "state-done");
+        btn.setAttribute("aria-label", "Mark as done");
+      }
+
+      refreshCount(sectionId);
+    }
+
+    /* ── REFRESH COUNT ──────────────────────── */
+    /*
+      Counts how many cards in a section have the
+      .done class and updates the badge text.
+      Hides the badge when the count is 0.
+    */
+    function refreshCount(sectionId) {
+      const section   = document.querySelector(`.section--${sectionId}`);
+      const total     = section.querySelectorAll(".card.done").length;
+      const badge     = document.getElementById(`count-${sectionId}`);
+
+      badge.textContent = `${total} item${total !== 1 ? "s" : ""} done`;
+      badge.classList.toggle("visible", total > 0);
+    }
+
+    /* ── INIT ───────────────────────────────── */
+    /* Render all three priority sections on load */
+    priorities.forEach(buildSection);
+  </script>
+
+</body>
+</html>
