@@ -220,6 +220,44 @@
     }
     .btn-done.state-undo:hover { background: #BBBBBB; }
 
+    /* ---------- Gmail connect banner ---------- */
+    .gmail-banner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin: 16px 0 4px;
+      padding: 14px 20px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 12px;
+      flex-wrap: wrap;
+    }
+    .gmail-banner p {
+      color: rgba(255,255,255,0.92);
+      font-size: 0.84rem;
+      text-align: center;
+    }
+    .btn-gmail {
+      padding: 8px 18px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      border: 2px solid #fff;
+      border-radius: 20px;
+      background: transparent;
+      color: #fff;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.2s, color 0.2s;
+      white-space: nowrap;
+    }
+    .btn-gmail:hover { background: #fff; color: #FF6B35; }
+    .btn-gmail.connected {
+      background: rgba(255,255,255,0.2);
+      font-size: 0.75rem;
+      border-color: rgba(255,255,255,0.5);
+    }
+    .btn-gmail.connected:hover { background: rgba(255,255,255,0.35); color: #fff; }
+
     /* ---------- Responsive tweak ---------- */
     @media (max-width: 420px) {
       .header h1     { font-size: 1.8rem; }
@@ -240,6 +278,12 @@
     <h1>What Nxt</h1>
     <p class="tagline">Noise vs Signal</p>
     <p class="sub-tagline">You Decide What Matters</p>
+
+    <!-- Shown/hidden by JS based on /auth/status -->
+    <div class="gmail-banner" id="gmail-banner" style="display:none">
+      <p id="gmail-banner-text">Connect your Gmail to see your real inbox.</p>
+      <a href="/auth/login" class="btn-gmail" id="gmail-btn">Connect Gmail</a>
+    </div>
   </header>
 
   <!-- ═══════════════════════════════════════════
@@ -473,8 +517,44 @@
       badge.classList.toggle("visible", total > 0);
     }
 
+    /* ── GMAIL BANNER ──────────────────────── */
+    /*
+      Checks /auth/status on load.
+      - Not connected: shows the banner with a "Connect Gmail" link.
+      - Connected:     shows a small "Gmail connected · Disconnect" badge
+                       so the user knows where their data is coming from.
+      In both cases loadMessages() runs immediately — connected = real Gmail,
+      disconnected = local messages.json fallback.
+    */
+    async function initAuthBanner() {
+      try {
+        const res  = await fetch('/auth/status');
+        const data = await res.json();
+        const banner = document.getElementById('gmail-banner');
+        const text   = document.getElementById('gmail-banner-text');
+        const btn    = document.getElementById('gmail-btn');
+
+        banner.style.display = 'flex';
+
+        if (data.connected) {
+          text.textContent = 'Gmail connected — showing your real inbox.';
+          btn.textContent  = 'Disconnect';
+          btn.href         = '/auth/logout';
+          btn.classList.add('connected');
+        } else {
+          text.textContent = 'Connect your Gmail to see your real inbox.';
+          btn.textContent  = 'Connect Gmail';
+          btn.href         = '/auth/login';
+          btn.classList.remove('connected');
+        }
+      } catch {
+        /* If the server isn't running yet, silently skip the banner */
+      }
+    }
+
     /* ── INIT ───────────────────────────────── */
     /* Kick off the fetch as soon as the page loads */
+    initAuthBanner();
     loadMessages();
   </script>
 

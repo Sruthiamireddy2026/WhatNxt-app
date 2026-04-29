@@ -1,19 +1,18 @@
 import 'dotenv/config';
 import Anthropic from '@anthropic-ai/sdk';
+import { google } from 'googleapis';
 import fs from 'fs';
 import http from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const __dirname  = path.dirname(fileURLToPath(import.meta.url));
+const TOKENS_PATH = path.join(__dirname, 'tokens.json');
+const GMAIL_SCOPES = ['https://www.googleapis.com/auth/gmail.readonly'];
+
 const client = new Anthropic();
 
 /* ── PRIORITY RULES ─────────────────────────────────────────────────────── */
-/*
-  Sent as the system prompt on every Claude call.
-  Marked cache_control: ephemeral so Anthropic caches it after the first
-  request — subsequent calls read the cache at ~10% of the normal token cost.
-*/
 const PRIORITY_RULES = `You are an AI inbox assistant for busy moms. \
 Your job is to classify incoming messages by urgency so the mom can act on what matters most first.
 
@@ -27,6 +26,10 @@ CLASSIFICATION RULES:
 2. A message from a school nurse or doctor always starts at do-now unless obviously routine.
 3. Retail promotions and Amazon shipment notices are always can-wait.
 4. A message that requires a decision or reply by tonight is do-today at minimum.
+5. If the subject line contains any urgency signal — including but not limited to "ASAP", "urgent", "important", "time-sensitive", "action required", "immediate", or "deadline" — score at minimum do-today, even if the body seems routine.
+6. If the preview contains "unsubscribe", treat the message as marketing regardless of subject line — cap priority at can-wait.
+7. If the sender address comes from a no-reply or automated domain (e.g. noreply@, no-reply@, donotreply@, or known marketing platforms such as mailchimp, sendgrid, klaviyo, constantcontact, hubspot, salesforce, marketo) — lower the priority by one level from what it would otherwise be, but never below can-wait.
+8. Rule 5 (urgency words → do-today) is overridden by rule 6: if the subject contains urgency words AND the preview contains "unsubscribe", the message is marketing — ignore the urgency words and cap at can-wait.
 
 OUTPUT FORMAT:
 Reply with ONLY a valid JSON array — no markdown fences, no explanation. Each element must have exactly two fields:
@@ -35,11 +38,96 @@ Reply with ONLY a valid JSON array — no markdown fences, no explanation. Each 
 Example:
 [{"id":1,"priority":"do-now"},{"id":2,"priority":"can-wait"}]`;
 
-/* ── SCORE MESSAGES VIA CLAUDE ──────────────────────────────────────────── */
+/* ── GOOGLE OAUTH HELPERS ───────────────────────────────────────────────── */
+function makeOAuthClient() {
+  return new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    'http://localhost:3000/auth/callback'
+  );
+}
+
+function loadTokens() {
+  try {
+    return fs.existsSync(TOKENS_PATH)
+      ? JSON.parse(fs.readFileSync(TOKENS_PATH, 'utf-8'))
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/* ── FETCH LAST 20 INBOX EMAILS ─────────────────────────────────────────── */
 /*
-  Sends all messages to Claude Haiku in a single batch.
-  Returns an array of { id, priority } objects.
+  1. Uses stored OAuth tokens to authenticate with the Gmail API.
+  2. Calls messages.list to get the 20 newest INBOX message IDs.
+  3. Fetches metadata-only (From, Subject, Date + snippet) for each.
+  4. Returns the array in the same shape as messages.json so the rest of
+     the pipeline (Claude scoring → frontend rendering) is unchanged.
 */
+async function fetchGmailMessages(tokens) {
+  const auth = makeOAuthClient();
+  auth.setCredentials(tokens);
+
+  /* Auto-refresh expired access tokens and persist the new ones */
+  auth.on('tokens', updated => {
+    const merged = { ...tokens, ...updated };
+    fs.writeFileSync(TOKENS_PATH, JSON.stringify(merged));
+  });
+
+  const gmail = google.gmail({ version: 'v1', auth });
+
+  const listRes = await gmail.users.messages.list({
+    userId: 'me',
+    maxResults: 20,
+    labelIds: ['INBOX'],
+  });
+
+  const ids = listRes.data.messages ?? [];
+  if (ids.length === 0) return [];
+
+  const messages = await Promise.all(
+    ids.map(async ({ id }, index) => {
+      const msg = await gmail.users.messages.get({
+        userId: 'me',
+        id,
+        format: 'metadata',
+        metadataHeaders: ['From', 'Subject', 'Date'],
+      });
+
+      const headers   = msg.data.payload?.headers ?? [];
+      const getHeader = name => headers.find(h => h.name === name)?.value ?? '';
+
+      const rawFrom = getHeader('From');
+      /* Extract display name from "Jane Doe <jane@example.com>" or fall back to full value */
+      const nameMatch = rawFrom.match(/^"?([^"<]+?)"?\s*</);
+      const sender    = nameMatch ? nameMatch[1].trim() : rawFrom;
+
+      const subject   = getHeader('Subject') || '(no subject)';
+      const snippet   = (msg.data.snippet ?? '').replace(/&#(\d+);/g, (_, n) => String.fromCharCode(n));
+
+      const rawDate   = getHeader('Date');
+      const d         = new Date(rawDate);
+      const timestamp = isNaN(d.getTime())
+        ? rawDate
+        : d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+
+      return {
+        id:        index + 1,
+        type:      'email',
+        sender,
+        subject,
+        preview:   snippet,
+        timestamp,
+        priority:  'can-wait',  /* placeholder; Claude will override */
+      };
+    })
+  );
+
+  return messages;
+}
+
+/* ── SCORE MESSAGES VIA CLAUDE ──────────────────────────────────────────── */
 async function scoreMessages(messages) {
   const messageList = messages
     .map(m =>
@@ -65,7 +153,7 @@ async function scoreMessages(messages) {
     ]
   });
 
-  const raw = response.content.find(b => b.type === 'text')?.text ?? '[]';
+  const raw  = response.content.find(b => b.type === 'text')?.text ?? '[]';
   const text = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
 
   const { input_tokens, cache_creation_input_tokens, cache_read_input_tokens } = response.usage;
@@ -88,16 +176,75 @@ async function handleRequest(req, res) {
     return res.end();
   }
 
-  /* API endpoint: score + return messages */
-  if (req.method === 'GET' && req.url === '/api/messages') {
-    try {
-      console.log('→ /api/messages — scoring with Claude Haiku…');
-      const raw = fs.readFileSync(path.join(__dirname, 'messages.json'), 'utf-8');
-      const messages = JSON.parse(raw);
+  const url = new URL(req.url, `http://localhost:${PORT}`);
 
+  /* ── Auth: redirect browser to Google consent screen ── */
+  if (url.pathname === '/auth/login') {
+    const authUrl = makeOAuthClient().generateAuthUrl({
+      access_type: 'offline',
+      scope: GMAIL_SCOPES,
+      prompt: 'consent',      /* always ask so we get a refresh_token */
+    });
+    res.writeHead(302, { Location: authUrl });
+    return res.end();
+  }
+
+  /* ── Auth: Google redirects back here with ?code=… ── */
+  if (url.pathname === '/auth/callback') {
+    const code = url.searchParams.get('code');
+    if (!code) {
+      res.writeHead(400);
+      return res.end('Missing code parameter');
+    }
+    try {
+      const { tokens } = await makeOAuthClient().getToken(code);
+      fs.writeFileSync(TOKENS_PATH, JSON.stringify(tokens));
+      console.log('  Gmail tokens saved to tokens.json');
+      res.writeHead(302, { Location: '/' });
+      return res.end();
+    } catch (err) {
+      console.error('OAuth token exchange failed:', err.message);
+      res.writeHead(500);
+      return res.end('OAuth failed: ' + err.message);
+    }
+  }
+
+  /* ── Auth status: lets the frontend know if we're connected ── */
+  if (url.pathname === '/auth/status') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ connected: !!loadTokens() }));
+  }
+
+  /* ── Logout: delete stored tokens ── */
+  if (url.pathname === '/auth/logout') {
+    if (fs.existsSync(TOKENS_PATH)) fs.unlinkSync(TOKENS_PATH);
+    res.writeHead(302, { Location: '/' });
+    return res.end();
+  }
+
+  /* ── API: score + return messages ── */
+  if (req.method === 'GET' && url.pathname === '/api/messages') {
+    try {
+      const tokens = loadTokens();
+      let messages;
+
+      if (tokens) {
+        console.log('→ /api/messages — fetching last 20 emails from Gmail…');
+        messages = await fetchGmailMessages(tokens);
+      } else {
+        console.log('→ /api/messages — Gmail not connected, using messages.json fallback…');
+        const raw = fs.readFileSync(path.join(__dirname, 'messages.json'), 'utf-8');
+        messages = JSON.parse(raw);
+      }
+
+      if (messages.length === 0) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify([]));
+      }
+
+      console.log(`  Scoring ${messages.length} messages with Claude Haiku…`);
       const scores = await scoreMessages(messages);
 
-      /* Merge Claude's priority back into each message object */
       const scored = messages.map(msg => {
         const hit = scores.find(s => Number(s.id) === msg.id);
         return { ...msg, priority: hit?.priority ?? msg.priority };
@@ -106,15 +253,14 @@ async function handleRequest(req, res) {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify(scored));
     } catch (err) {
-      console.error('Error scoring messages:', err.message);
+      console.error('Error in /api/messages:', err.message);
       res.writeHead(500, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: err.message }));
     }
   }
 
-  /* Static file serving: index.html, messages.json, etc. */
-  const urlPath = req.url === '/' ? '/index.html' : req.url;
-  const filePath = path.join(__dirname, urlPath.split('?')[0]);
+  /* ── Static file serving ── */
+  const filePath = path.join(__dirname, url.pathname === '/' ? '/index.html' : url.pathname);
 
   if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
     const MIME = {

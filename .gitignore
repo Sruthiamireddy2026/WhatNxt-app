@@ -1,2 +1,5 @@
 .env
 node_modules/
+google_credentials.json
+client_secret*.json
+tokens.json
