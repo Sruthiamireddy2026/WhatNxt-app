@@ -353,12 +353,12 @@
 
       let messages;
       try {
-        const res = await fetch("messages.json");
+        const res = await fetch("/api/messages");
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         messages = await res.json();
       } catch (err) {
         hideSpinner();
-        showError(`${err.message}. Make sure messages.json is in the same folder as index.html.`);
+        showError(`${err.message}. Make sure the server is running: <code>node server.js</code>`);
         return;
       }
 

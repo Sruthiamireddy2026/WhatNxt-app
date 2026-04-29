@@ -1,0 +1,12 @@
+{
+  "name": "whatnxt-app",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.52.0",
+    "dotenv": "^16.4.5"
+  }
+}
