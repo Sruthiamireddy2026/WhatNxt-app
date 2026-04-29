@@ -1,0 +1,92 @@
+[
+  {
+    "id": 1,
+    "type": "text",
+    "sender": "Lincoln Elementary — Nurse Rivera",
+    "subject": "URGENT: Jake has a fever of 101.4 — please call now",
+    "preview": "Hi, this is Nurse Rivera. Jake came to my office at 10:15 AM with a fever. He needs to be picked up within the hour.",
+    "priority": "do-now",
+    "timestamp": "10:17 AM"
+  },
+  {
+    "id": 2,
+    "type": "email",
+    "sender": "Dr. Sarah Kim — Pediatrics",
+    "subject": "Appointment reminder: TODAY at 2:00 PM",
+    "preview": "This is a reminder that Emma has a well-child visit scheduled for today at 2:00 PM. Please arrive 10 minutes early.",
+    "priority": "do-now",
+    "timestamp": "8:02 AM"
+  },
+  {
+    "id": 3,
+    "type": "text",
+    "sender": "Coach Rivera — Lightning Soccer",
+    "subject": "Practice moved to 4 PM Friday (not 3 PM)",
+    "preview": "Hey team parents! Due to field maintenance, Friday's practice is now at 4 PM. Same location. Let me know if you have questions.",
+    "priority": "do-today",
+    "timestamp": "9:45 AM"
+  },
+  {
+    "id": 4,
+    "type": "email",
+    "sender": "Kohl's Rewards",
+    "subject": "30% off TODAY ONLY — your saved items are waiting",
+    "preview": "You left some great things in your cart! Today only: use code MOM30 for 30% off your entire order. Expires at midnight.",
+    "priority": "do-today",
+    "timestamp": "7:30 AM"
+  },
+  {
+    "id": 5,
+    "type": "text",
+    "sender": "Mark (Husband)",
+    "subject": "Dinner tonight — are we cooking or ordering?",
+    "preview": "Hey babe, should I pick something up on my way home or are you making that pasta? Just let me know by 5 so I can plan.",
+    "priority": "do-today",
+    "timestamp": "11:03 AM"
+  },
+  {
+    "id": 6,
+    "type": "email",
+    "sender": "Maplewood HOA",
+    "subject": "Spring Newsletter — pool opening, lawn care tips & more",
+    "preview": "The pool opens May 15! Inside: lawn care schedule, the spring potluck on June 7, and new parking rules for the north lot.",
+    "priority": "can-wait",
+    "timestamp": "6:00 AM"
+  },
+  {
+    "id": 7,
+    "type": "email",
+    "sender": "Amazon",
+    "subject": "Your order has shipped — arriving Thursday",
+    "preview": "Great news! Your order (#114-9823041) is on its way. Estimated delivery: Thursday by 8 PM. Track your package anytime.",
+    "priority": "can-wait",
+    "timestamp": "5:48 AM"
+  },
+  {
+    "id": 8,
+    "type": "email",
+    "sender": "Lincoln Elementary PTA",
+    "subject": "PTA meeting this Thursday at 6:30 PM — agenda inside",
+    "preview": "Join us Thursday evening in the school library. We'll be discussing the spring carnival, budget updates, and volunteer sign-ups.",
+    "priority": "can-wait",
+    "timestamp": "7:15 AM"
+  },
+  {
+    "id": 9,
+    "type": "email",
+    "sender": "Mrs. Patel — Room 12",
+    "subject": "Book Fair fundraiser — 42% of goal reached, thank you!",
+    "preview": "Thanks to your generous support, we've raised $1,260 of our $3,000 goal! The fair runs through Friday. Every purchase helps.",
+    "priority": "can-wait",
+    "timestamp": "8:55 AM"
+  },
+  {
+    "id": 10,
+    "type": "email",
+    "sender": "Khan Academy",
+    "subject": "Emma is on a 7-day streak — keep it going!",
+    "preview": "Way to go! Emma has practiced math 7 days in a row. Explore new courses in science and coding to keep the momentum.",
+    "priority": "can-wait",
+    "timestamp": "9:00 AM"
+  }
+]
