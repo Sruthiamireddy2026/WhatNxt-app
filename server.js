@@ -21,15 +21,22 @@ PRIORITY LEVELS:
 - do-today : Schedule changes, time-sensitive (today only) deals or reminders, family coordination needed before end of day
 - can-wait : Newsletters, general promos, shipping notifications, community updates, anything that can wait 24+ hours
 
+SENDER TRUST TIERS (evaluate this first, before applying any other rule):
+- PERSONAL   : sender domain is gmail.com, yahoo.com, hotmail.com, outlook.com, icloud.com, me.com, or aol.com
+- AUTOMATED  : sender address starts with noreply@, no-reply@, or donotreply@, OR domain belongs to a known marketing platform (mailchimp, sendgrid, klaviyo, constantcontact, hubspot, salesforce, marketo, etc.)
+- UNKNOWN    : everything else (company domains, school addresses, etc.)
+
 CLASSIFICATION RULES:
 1. When in doubt between two levels, choose the higher urgency.
 2. A message from a school nurse or doctor always starts at do-now unless obviously routine.
 3. Retail promotions and Amazon shipment notices are always can-wait.
 4. A message that requires a decision or reply by tonight is do-today at minimum.
-5. If the subject line contains any urgency signal — including but not limited to "ASAP", "urgent", "important", "time-sensitive", "action required", "immediate", or "deadline" — score at minimum do-today, even if the body seems routine.
-6. If the preview contains "unsubscribe", treat the message as marketing regardless of subject line — cap priority at can-wait.
-7. If the sender address comes from a no-reply or automated domain (e.g. noreply@, no-reply@, donotreply@, or known marketing platforms such as mailchimp, sendgrid, klaviyo, constantcontact, hubspot, salesforce, marketo) — lower the priority by one level from what it would otherwise be, but never below can-wait.
-8. Rule 5 (urgency words → do-today) is overridden by rule 6: if the subject contains urgency words AND the preview contains "unsubscribe", the message is marketing — ignore the urgency words and cap at can-wait.
+5. If the subject line contains any urgency signal — including but not limited to "ASAP", "urgent", "important", "time-sensitive", "action required", "immediate", "deadline", "emergency", "help", "call me", or "please respond" — score at minimum do-today, even if the body seems routine.
+6. PERSONAL sender + urgency signal in subject → ALWAYS score do-now, no exceptions. Do not let the subject topic (e.g. "Job Opening", "Party", "Quick question") override this — a real person writing ASAP to you is always urgent.
+7. Rules 8 and 9 below (marketing/unsubscribe demotions) apply ONLY to AUTOMATED or UNKNOWN senders. They NEVER apply to PERSONAL senders.
+8. If the sender is AUTOMATED or UNKNOWN AND the preview contains "unsubscribe" → treat as marketing, cap priority at can-wait.
+9. If the sender is AUTOMATED or UNKNOWN AND the subject contains urgency words AND the preview contains "unsubscribe" → the urgency words are a dark pattern, ignore them, cap at can-wait.
+10. AUTOMATED senders with no unsubscribe signal → lower priority by one level from what it would otherwise be, but never below can-wait.
 
 OUTPUT FORMAT:
 Reply with ONLY a valid JSON array — no markdown fences, no explanation. Each element must have exactly two fields:
@@ -98,10 +105,11 @@ async function fetchGmailMessages(tokens) {
       const headers   = msg.data.payload?.headers ?? [];
       const getHeader = name => headers.find(h => h.name === name)?.value ?? '';
 
-      const rawFrom = getHeader('From');
-      /* Extract display name from "Jane Doe <jane@example.com>" or fall back to full value */
-      const nameMatch = rawFrom.match(/^"?([^"<]+?)"?\s*</);
-      const sender    = nameMatch ? nameMatch[1].trim() : rawFrom;
+      const rawFrom    = getHeader('From');
+      const nameMatch  = rawFrom.match(/^"?([^"<]+?)"?\s*</);
+      const sender     = nameMatch ? nameMatch[1].trim() : rawFrom;
+      const emailMatch = rawFrom.match(/<([^>]+)>/);
+      const senderEmail = emailMatch ? emailMatch[1] : rawFrom;
 
       const subject   = getHeader('Subject') || '(no subject)';
       const snippet   = (msg.data.snippet ?? '').replace(/&#(\d+);/g, (_, n) => String.fromCharCode(n));
@@ -116,6 +124,7 @@ async function fetchGmailMessages(tokens) {
         id:        index + 1,
         type:      'email',
         sender,
+        senderEmail,
         subject,
         preview:   snippet,
         timestamp,
@@ -131,7 +140,7 @@ async function fetchGmailMessages(tokens) {
 async function scoreMessages(messages) {
   const messageList = messages
     .map(m =>
-      `ID ${m.id} | Type: ${m.type} | From: "${m.sender}" | Subject: "${m.subject}" | Preview: "${m.preview}"`
+      `ID ${m.id} | Type: ${m.type} | From: "${m.sender}${m.senderEmail ? ` <${m.senderEmail}>` : ''}" | Subject: "${m.subject}" | Preview: "${m.preview}"`
     )
     .join('\n');
 
