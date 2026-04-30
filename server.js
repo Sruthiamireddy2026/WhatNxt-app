@@ -136,13 +136,52 @@ async function fetchGmailMessages(tokens) {
   return messages;
 }
 
+/*
+ * ═══════════════════════════════════════════════
+ * CORE ARCHITECTURE PRINCIPLE — DO NOT CHANGE
+ * "User Exception Layer"
+ * ═══════════════════════════════════════════════
+ *
+ * Custom rules are ALWAYS evaluated FIRST before
+ * any system logic runs. This is intentional and
+ * permanent — it is the core product philosophy:
+ * "You Decide What Matters"
+ *
+ * EVALUATION ORDER — NEVER CHANGE THIS:
+ * Step 1: User custom rules → checked FIRST
+ *         Match found = execute immediately
+ *         Skip ALL system rules for this message
+ *
+ * Step 2: System rules → only run if Step 1
+ *         finds NO matching custom rule
+ *
+ * WHY: Users are always the final authority on
+ * what is signal vs noise in their inbox.
+ * System rules are defaults — user rules are law.
+ *
+ * ADDED: April 30 2026 — Sruthi Amireddy
+ * ═══════════════════════════════════════════════
+ */
 /* ── SCORE MESSAGES VIA CLAUDE ──────────────────────────────────────────── */
-async function scoreMessages(messages) {
+async function scoreMessages(messages, userRules = '') {
   const messageList = messages
     .map(m =>
       `ID ${m.id} | Type: ${m.type} | From: "${m.sender}${m.senderEmail ? ` <${m.senderEmail}>` : ''}" | Subject: "${m.subject}" | Preview: "${m.preview}"`
     )
     .join('\n');
+
+  /* Custom rules are checked first; default rules are fallback only.
+     Placing them before PRIORITY_RULES with an explicit early-exit stops
+     marketing caps (rules 8-9) from overriding what the user typed. */
+  const systemText = userRules.trim()
+    ? `STEP 1 — USER'S CUSTOM RULES (evaluate these first):
+${userRules.trim()}
+
+If any custom rule above matches the message → assign that priority and STOP. Do not apply any rule from Step 2 to this message.
+
+STEP 2 — DEFAULT RULES (apply ONLY when no custom rule from Step 1 matched):
+${PRIORITY_RULES}`
+    : PRIORITY_RULES;
 
   const response = await client.messages.create({
     model: 'claude-haiku-4-5',
@@ -150,7 +189,7 @@ async function scoreMessages(messages) {
     system: [
       {
         type: 'text',
-        text: PRIORITY_RULES,
+        text: systemText,
         cache_control: { type: 'ephemeral' }
       }
     ],
@@ -251,8 +290,9 @@ async function handleRequest(req, res) {
         return res.end(JSON.stringify([]));
       }
 
-      console.log(`  Scoring ${messages.length} messages with Claude Haiku…`);
-      const scores = await scoreMessages(messages);
+      const userRules = url.searchParams.get('rules') ?? '';
+      console.log(`  Scoring ${messages.length} messages with Claude Haiku${userRules ? ' + custom rules' : ''}…`);
+      const scores = await scoreMessages(messages, userRules);
 
       const scored = messages.map(msg => {
         const hit = scores.find(s => Number(s.id) === msg.id);
