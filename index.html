@@ -259,6 +259,110 @@
     }
     .btn-gmail.connected:hover { background: rgba(255,255,255,0.35); color: #fff; }
 
+    /* ---------- Last-analyzed timestamp ---------- */
+    .last-analyzed {
+      font-size: 0.68rem;
+      color: rgba(255,255,255,0.55);
+      margin-top: 5px;
+      font-style: italic;
+      min-height: 1em;
+      letter-spacing: 0.2px;
+    }
+
+    /* ---------- Meetings section ---------- */
+    .meetings-wrap {
+      max-width: 680px;
+      margin: 20px auto 0;
+      padding: 0 16px;
+    }
+
+    .meetings-section {
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+    }
+
+    .meetings-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: #FF6B35;
+      font-weight: 700;
+      font-size: 0.82rem;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: #fff;
+    }
+
+    .meetings-count {
+      font-size: 0.72rem;
+      font-weight: 600;
+      background: rgba(255,255,255,0.25);
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+
+    .meeting-card {
+      background: #fff;
+      padding: 13px 14px 13px 16px;
+      border-left: 4px solid #3B82F6;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .meeting-card + .meeting-card { border-top: 1px solid #F0F0F0; }
+
+    .meeting-title {
+      font-weight: 700;
+      font-size: 0.88rem;
+      color: #1A1A2E;
+    }
+
+    .meeting-time {
+      font-size: 0.78rem;
+      color: #555;
+      font-weight: 500;
+    }
+
+    .meeting-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 2px;
+    }
+
+    .meeting-attendees {
+      font-size: 0.72rem;
+      color: #7A7A8C;
+    }
+
+    .badge-prep {
+      font-size: 0.68rem;
+      font-weight: 700;
+      background: #FEF3C7;
+      color: #92400E;
+      border: 1px solid #FDE68A;
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+
+    .badge-no-agenda {
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: #9CA3AF;
+    }
+
+    .meetings-empty {
+      background: #fff;
+      padding: 18px 16px;
+      font-size: 0.84rem;
+      color: #2A9D5C;
+      font-weight: 600;
+      text-align: center;
+    }
+
     /* ---------- Rules button in header ---------- */
     .btn-rules {
       position: absolute;
@@ -444,6 +548,7 @@
     <h1>What Nxt</h1>
     <p class="tagline">Noise vs Signal</p>
     <p class="sub-tagline">You Decide What Matters</p>
+    <p id="last-analyzed" class="last-analyzed"></p>
 
     <!-- Shown/hidden by JS based on /auth/status -->
     <div class="gmail-banner" id="gmail-banner" style="display:none">
@@ -459,6 +564,8 @@
        Three stacked sections rendered by the JS
        buildSection() helper below.
   ════════════════════════════════════════════ -->
+  <div class="meetings-wrap" id="meetings-wrap"></div>
+
   <main class="container" id="dashboard"></main>
 
   <!-- Rules overlay + slide-out panel -->
@@ -503,6 +610,66 @@
          handle Done ↔ Undo and the item counter.
   ════════════════════════════════════════════ -->
   <script>
+    /* ── CALENDAR / MEETINGS ───────────────── */
+    async function loadCalendar() {
+      const wrap = document.getElementById('meetings-wrap');
+      try {
+        const res = await fetch('/api/calendar');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const events = await res.json();
+        if (events.error) throw new Error(events.error);
+        buildMeetingsSection(events, wrap);
+      } catch {
+        wrap.innerHTML = '';   /* not connected or no calendar access — hide silently */
+      }
+    }
+
+    function buildMeetingsSection(events, wrap) {
+      const safe = str => String(str).replace(/[&<>"']/g, c =>
+        ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c])
+      );
+
+      const section = document.createElement('div');
+      section.className = 'meetings-section';
+
+      const count = events.length;
+      section.innerHTML = `
+        <div class="meetings-header">
+          <span>📅 Today's Meetings</span>
+          ${count > 0 ? `<span class="meetings-count">${count} meeting${count !== 1 ? 's' : ''}</span>` : ''}
+        </div>
+      `;
+
+      if (count === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'meetings-empty';
+        empty.textContent = '✅ No meetings today — focus time!';
+        section.appendChild(empty);
+      } else {
+        events.forEach(ev => {
+          const attendeeText = ev.attendees === 0
+            ? 'No attendees listed'
+            : `👥 ${ev.attendees} attendee${ev.attendees !== 1 ? 's' : ''}`;
+
+          const card = document.createElement('div');
+          card.className = 'meeting-card';
+          card.innerHTML = `
+            <div class="meeting-title">${safe(ev.title)}</div>
+            <div class="meeting-time">${safe(ev.startTime)} – ${safe(ev.endTime)}</div>
+            <div class="meeting-meta">
+              <span class="meeting-attendees">${attendeeText}</span>
+              ${ev.prepNeeded       ? '<span class="badge-prep">🕐 Prep needed</span>'   : ''}
+              ${!ev.hasDescription  ? '<span class="badge-no-agenda">⚠️ No agenda set</span>' : ''}
+            </div>
+          `;
+          section.appendChild(card);
+        });
+      }
+
+      wrap.innerHTML = '';
+      wrap.appendChild(section);
+    }
+
     /* ── CUSTOM RULES ──────────────────────── */
     let customRules = localStorage.getItem('whatnxt_rules') || '';
 
@@ -532,6 +699,7 @@
     function saveRules() {
       customRules = document.getElementById('rules-textarea').value.trim();
       localStorage.setItem('whatnxt_rules', customRules);
+      localStorage.removeItem('whatnxt_score_cache');   /* new rules → re-score everything */
       updateRulesBtn();
       const saveBtn = document.getElementById('btn-save-rules');
       const msg = document.getElementById('rules-saved-msg');
@@ -616,24 +784,36 @@
       `;
     }
 
+    /* ── LAST ANALYZED TIMESTAMP ───────────── */
+    function updateLastAnalyzed() {
+      const el = document.getElementById('last-analyzed');
+      if (!el) return;
+      const ts = localStorage.getItem('whatnxt_last_analyzed');
+      if (!ts) { el.textContent = ''; return; }
+      const mins = Math.floor((Date.now() - Number(ts)) / 60000);
+      if (mins < 1)       el.textContent = 'Last analyzed: just now';
+      else if (mins < 60) el.textContent = `Last analyzed: ${mins} min${mins !== 1 ? 's' : ''} ago`;
+      else {
+        const hrs = Math.floor(mins / 60);
+        el.textContent = `Last analyzed: ${hrs} hour${hrs !== 1 ? 's' : ''} ago`;
+      }
+    }
+
     /* ── LOAD MESSAGES ──────────────────────── */
-    /*
-      1. Shows the spinner.
-      2. Fetches messages.json from the same folder.
-      3. Groups the flat array into three buckets
-         by matching each message's `priority` field
-         against BUCKETS[].key.
-      4. Calls buildSection() for each bucket.
-      5. On any failure, hides the spinner and shows
-         the error banner instead.
-    */
     async function loadMessages() {
       showSpinner();
 
+      /* Score cache: { [gmailId]: { priority, cachedAt } } */
+      const cache     = JSON.parse(localStorage.getItem('whatnxt_score_cache') || '{}');
+      const cachedIds = Object.keys(cache);
+
       let messages;
       try {
-        const rulesParam = customRules ? `?rules=${encodeURIComponent(customRules)}` : '';
-        const res = await fetch(`/api/messages${rulesParam}`);
+        const params = new URLSearchParams();
+        if (customRules)      params.set('rules',  customRules);
+        if (cachedIds.length) params.set('cached', cachedIds.join(','));
+        const qs  = params.toString() ? `?${params.toString()}` : '';
+        const res = await fetch(`/api/messages${qs}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         messages = await res.json();
       } catch (err) {
@@ -641,6 +821,23 @@
         showError(`${err.message}. Make sure the server is running: <code>node server.js</code>`);
         return;
       }
+
+      /* Merge fresh scores + cached scores; persist any new scores */
+      const newCache = { ...cache };
+      messages = messages.map(msg => {
+        if (msg.priority === null && msg.gmailId && cache[msg.gmailId]) {
+          /* Server skipped this one — fill in from localStorage */
+          return { ...msg, priority: cache[msg.gmailId].priority };
+        }
+        if (msg.priority !== null && msg.gmailId) {
+          /* Fresh Claude score — save it for next load */
+          newCache[msg.gmailId] = { priority: msg.priority, cachedAt: Date.now() };
+        }
+        return msg;
+      });
+      localStorage.setItem('whatnxt_score_cache',   JSON.stringify(newCache));
+      localStorage.setItem('whatnxt_last_analyzed', String(Date.now()));
+      updateLastAnalyzed();
 
       hideSpinner();
 
@@ -791,7 +988,9 @@
     /* ── INIT ───────────────────────────────── */
     /* Kick off the fetch as soon as the page loads */
     updateRulesBtn();
+    updateLastAnalyzed();
     initAuthBanner();
+    loadCalendar();
     loadMessages();
   </script>
 

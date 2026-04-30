@@ -8,7 +8,10 @@ import { fileURLToPath } from 'url';
 
 const __dirname  = path.dirname(fileURLToPath(import.meta.url));
 const TOKENS_PATH = path.join(__dirname, 'tokens.json');
-const GMAIL_SCOPES = ['https://www.googleapis.com/auth/gmail.readonly'];
+const GMAIL_SCOPES = [
+  'https://www.googleapis.com/auth/gmail.readonly',
+  'https://www.googleapis.com/auth/calendar.readonly',
+];
 
 const client = new Anthropic();
 
@@ -122,6 +125,7 @@ async function fetchGmailMessages(tokens) {
 
       return {
         id:        index + 1,
+        gmailId:   id,           /* stable Gmail message ID — used as localStorage cache key */
         type:      'email',
         sender,
         senderEmail,
@@ -134,6 +138,54 @@ async function fetchGmailMessages(tokens) {
   );
 
   return messages;
+}
+
+/* ── FETCH TODAY'S CALENDAR EVENTS ──────────────────────────────────────── */
+async function fetchCalendarEvents(tokens) {
+  const auth = makeOAuthClient();
+  auth.setCredentials(tokens);
+  auth.on('tokens', updated => {
+    const merged = { ...tokens, ...updated };
+    fs.writeFileSync(TOKENS_PATH, JSON.stringify(merged));
+  });
+
+  const cal  = google.calendar({ version: 'v3', auth });
+  const now  = new Date();
+
+  /* Midnight-to-midnight window in local time, expressed as ISO strings */
+  const timeMin = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  const timeMax = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
+
+  const listRes = await cal.events.list({
+    calendarId:  'primary',
+    timeMin,
+    timeMax,
+    singleEvents: true,   /* expands recurring events into individual instances */
+    orderBy:      'startTime',
+    maxResults:   20,
+  });
+
+  const fmt = d => d.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit' });
+
+  return (listRes.data.items ?? [])
+    .filter(e => e.start?.dateTime)   /* skip all-day events (they have start.date, not dateTime) */
+    .map(e => {
+      const start      = new Date(e.start.dateTime);
+      const end        = new Date(e.end.dateTime);
+      const minsUntil  = (start - now) / 60000;
+
+      return {
+        id:             e.id,
+        title:          e.summary || '(No title)',
+        startTime:      fmt(start),
+        endTime:        fmt(end),
+        attendees:      (e.attendees ?? []).length,
+        hasDescription: !!(e.description?.trim()),
+        location:       e.location  || null,
+        /* true when the meeting hasn't started yet and is within 2 hours */
+        prepNeeded:     minsUntil > 0 && minsUntil < 120,
+      };
+    });
 }
 
 /*
@@ -291,18 +343,65 @@ async function handleRequest(req, res) {
       }
 
       const userRules = url.searchParams.get('rules') ?? '';
-      console.log(`  Scoring ${messages.length} messages with Claude Haiku${userRules ? ' + custom rules' : ''}…`);
-      const scores = await scoreMessages(messages, userRules);
+      /* cachedIds: Gmail message IDs the client already has scores for */
+      const cachedSet = new Set(
+        (url.searchParams.get('cached') ?? '').split(',').filter(Boolean)
+      );
 
-      const scored = messages.map(msg => {
-        const hit = scores.find(s => Number(s.id) === msg.id);
-        return { ...msg, priority: hit?.priority ?? msg.priority };
-      });
+      /* Split: messages with no cached score need Claude; the rest are skipped */
+      const toScore = messages.filter(m => !m.gmailId || !cachedSet.has(m.gmailId));
+      const skipped = messages.filter(m =>  m.gmailId &&  cachedSet.has(m.gmailId));
+
+      const scoreMap = {};
+      if (toScore.length > 0) {
+        /* Re-index 1…N so Claude always sees a clean sequential list */
+        const forClaude = toScore.map((m, i) => ({ ...m, id: i + 1 }));
+        console.log(
+          `  Scoring ${toScore.length} message(s) with Claude Haiku` +
+          (skipped.length ? ` — ${skipped.length} served from client cache` : '') +
+          (userRules ? ' + custom rules' : '') + '…'
+        );
+        const rawScores = await scoreMessages(forClaude, userRules);
+        forClaude.forEach(m => {
+          const hit = rawScores.find(s => Number(s.id) === m.id);
+          scoreMap[m.gmailId ?? m.id] = hit?.priority ?? 'can-wait';
+        });
+      } else {
+        console.log(`  All ${messages.length} message(s) served from client cache — skipping Claude`);
+      }
+
+      const scored = messages.map(msg => ({
+        ...msg,
+        /* null = tell the client to fill in from localStorage */
+        priority: (msg.gmailId && cachedSet.has(msg.gmailId))
+          ? null
+          : (scoreMap[msg.gmailId ?? msg.id] ?? msg.priority),
+      }));
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify(scored));
     } catch (err) {
       console.error('Error in /api/messages:', err.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: err.message }));
+    }
+  }
+
+  /* ── API: today's calendar events ── */
+  if (req.method === 'GET' && url.pathname === '/api/calendar') {
+    try {
+      const tokens = loadTokens();
+      if (!tokens) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify([]));
+      }
+      console.log('→ /api/calendar — fetching today\'s events…');
+      const events = await fetchCalendarEvents(tokens);
+      console.log(`  Found ${events.length} event(s) today`);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify(events));
+    } catch (err) {
+      console.error('Error in /api/calendar:', err.message);
       res.writeHead(500, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: err.message }));
     }
