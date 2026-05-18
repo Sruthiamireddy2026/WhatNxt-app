@@ -1,4 +1,20 @@
 # ⚡ What Nxt — Noise vs Signal
+## Why This Exists
+
+Most inbox prioritization tools optimize for AI automation.
+
+What Nxt was designed around a different problem:
+high-volume communication workflows create operational noise long before people consciously recognize overload.
+
+The issue is rarely the number of messages.
+The issue is identifying what actually matters without losing user control.
+
+The product philosophy behind What Nxt is:
+- AI should reduce cognitive filtering effort
+- users should retain final prioritization authority
+- workflow rules should adapt to human context, not override it
+
+This principle led to the "User Exception Layer" architecture, where custom user rules always take precedence over system-generated scoring.
 
 A priority inbox dashboard for people managing high-volume communication workflows. Connects to Gmail via OAuth, scores each message with Claude AI, and sorts everything into three buckets: **Do Now**, **Do Today**, and **Can Wait**.
 > AI-powered priority inbox. You decide what matters.
