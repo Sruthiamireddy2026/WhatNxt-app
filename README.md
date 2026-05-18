@@ -1,14 +1,13 @@
-# What Nxt
+# ⚡ What Nxt — Noise vs Signal
 
 A priority inbox dashboard for people managing high-volume communication workflows. Connects to Gmail via OAuth, scores each message with Claude AI, and sorts everything into three buckets: **Do Now**, **Do Today**, and **Can Wait**.
-# ⚡ What Nxt — Noise vs Signal
 > AI-powered priority inbox. You decide what matters.
 
 ## 🗺️ Roadmap
 | Phase | Status | What |
 |-------|--------|------|
 | Phase 1 — Mock UI + Claude AI | ✅ Done | Working dashboard |
-| Phase 2 — Real Gmail + Calendar | ✅ Done | AI reads YOUR inbox |
+| Phase 2 — Real Gmail + Calendar | ✅ Done | AI reads real inbox and calendar data |
 | Phase 3 — Deploy + Beta Users | 🔄 Now | App goes online |
 | Phase 4 — Multiple Personas | ⏳ Soon | Teachers, Counselors, Lawyers |
 
@@ -90,7 +89,7 @@ STEP 2 — DEFAULT RULES (fallback only):
 
 **Do not restructure this prompt order.** Placing system rules before custom rules allows hard caps (marketing filters) to override user intent — that is the exact bug this architecture was designed to prevent.
 
-Any future change to the scoring logic that moves or weakens Step 1 requires **This evaluation order is intentional and should not be changed without revisiting the product philosophy.**.
+Any future change to the scoring logic that moves or weakens Step 1 should be made only after revisiting the underlying product philosophy.
 
 *Principle established: April 30 2026 — Sruthi Amireddy*
 
