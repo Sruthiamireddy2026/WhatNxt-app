@@ -4,7 +4,7 @@
 Most inbox prioritization tools optimize for AI automation.
 
 What Nxt was designed around a different problem:
-high-volume communication workflows create operational noise long before people consciously recognize overload.
+High-volume communication workflows create operational noise long before people consciously recognize overload.
 
 The issue is rarely the number of messages.
 The issue is identifying what actually matters without losing user control.
@@ -16,7 +16,7 @@ The product philosophy behind What Nxt is:
 
 This principle led to the "User Exception Layer" architecture, where custom user rules always take precedence over system-generated scoring.
 
-A priority inbox dashboard for people managing high-volume communication workflows. What Nxt connects to Gmail via OAuth, scores each message with Claude AI, and sorts everything into three buckets: **Do Now**, **Do Today**, and **Can Wait**.
+What Nxt connects to Gmail via OAuth, scores each message with Claude AI, and sorts everything into three buckets: **Do Now**, **Do Today**, and **Can Wait**.
 > AI-powered priority inbox. You decide what matters.
 
 ## 🗺️ Roadmap
@@ -75,7 +75,7 @@ GOOGLE_CLIENT_SECRET=...
 
 This is intentional and permanent. It is the core product philosophy: **"You Decide What Matters."**
 
-#### Evaluation order — never change this:
+#### Evaluation order (intentional by design)
 
 | Step | What runs | Outcome |
 |------|-----------|---------|
