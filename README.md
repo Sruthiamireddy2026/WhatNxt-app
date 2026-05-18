@@ -16,7 +16,7 @@ The product philosophy behind What Nxt is:
 
 This principle led to the "User Exception Layer" architecture, where custom user rules always take precedence over system-generated scoring.
 
-A priority inbox dashboard for people managing high-volume communication workflows. Connects to Gmail via OAuth, scores each message with Claude AI, and sorts everything into three buckets: **Do Now**, **Do Today**, and **Can Wait**.
+A priority inbox dashboard for people managing high-volume communication workflows. What Nxt connects to Gmail via OAuth, scores each message with Claude AI, and sorts everything into three buckets: **Do Now**, **Do Today**, and **Can Wait**.
 > AI-powered priority inbox. You decide what matters.
 
 ## 🗺️ Roadmap
