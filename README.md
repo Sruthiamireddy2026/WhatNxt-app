@@ -1,6 +1,6 @@
 # What Nxt
 
-A priority inbox dashboard for busy moms. Connects to Gmail via OAuth, scores each message with Claude AI, and sorts everything into three buckets: **Do Now**, **Do Today**, and **Can Wait**.
+A priority inbox dashboard for people managing high-volume communication workflows. Connects to Gmail via OAuth, scores each message with Claude AI, and sorts everything into three buckets: **Do Now**, **Do Today**, and **Can Wait**.
 # ⚡ What Nxt — Noise vs Signal
 > AI-powered priority inbox. You decide what matters.
 
@@ -13,7 +13,7 @@ A priority inbox dashboard for busy moms. Connects to Gmail via OAuth, scores ea
 | Phase 4 — Multiple Personas | ⏳ Soon | Teachers, Counselors, Lawyers |
 
 ## 👩‍💻 Built By
-Sruthi Amireddy — Product Manager  
+Product concept, workflow logic, and architecture by Sruthi Amireddy
 Built with Claude Code · April 2026
 
 ---
@@ -90,7 +90,7 @@ STEP 2 — DEFAULT RULES (fallback only):
 
 **Do not restructure this prompt order.** Placing system rules before custom rules allows hard caps (marketing filters) to override user intent — that is the exact bug this architecture was designed to prevent.
 
-Any future change to the scoring logic that moves or weakens Step 1 requires **explicit approval from Sruthi Amireddy**.
+Any future change to the scoring logic that moves or weakens Step 1 requires **This evaluation order is intentional and should not be changed without revisiting the product philosophy.**.
 
 *Principle established: April 30 2026 — Sruthi Amireddy*
 
