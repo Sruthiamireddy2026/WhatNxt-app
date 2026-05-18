@@ -1,6 +1,20 @@
 # What Nxt
 
 A priority inbox dashboard for busy moms. Connects to Gmail via OAuth, scores each message with Claude AI, and sorts everything into three buckets: **Do Now**, **Do Today**, and **Can Wait**.
+# ⚡ What Nxt — Noise vs Signal
+> AI-powered priority inbox. You decide what matters.
+
+## 🗺️ Roadmap
+| Phase | Status | What |
+|-------|--------|------|
+| Phase 1 — Mock UI + Claude AI | ✅ Done | Working dashboard |
+| Phase 2 — Real Gmail + Calendar | ✅ Done | AI reads YOUR inbox |
+| Phase 3 — Deploy + Beta Users | 🔄 Now | App goes online |
+| Phase 4 — Multiple Personas | ⏳ Soon | Teachers, Counselors, Lawyers |
+
+## 👩‍💻 Built By
+Sruthi Amireddy — Product Manager  
+Built with Claude Code · April 2026
 
 ---
 
