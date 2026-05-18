@@ -67,7 +67,7 @@ GOOGLE_CLIENT_SECRET=...
 
 ---
 
-## Core Architecture Principle — DO NOT CHANGE
+## Core Architecture Principle 
 
 ### "User Exception Layer"
 
