@@ -121,8 +121,8 @@ Users can write plain-English rules in the **⚙️ My Rules** panel (top-right 
 Example rules:
 ```
 Anything from my kid's school = always DO NOW
-Kohl's emails = DO TODAY
-HOA emails = always CAN WAIT
+Calendar changes from healthcare providers = DO TODAY
+Promotional emails = always CAN WAIT
 ```
 
 ---
