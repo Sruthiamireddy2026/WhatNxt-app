@@ -19,6 +19,9 @@ This principle led to the "User Exception Layer" architecture, where custom user
 What Nxt connects to Gmail via OAuth, scores each message with Claude AI, and sorts everything into three buckets: **Do Now**, **Do Today**, and **Can Wait**.
 > AI-powered priority inbox. You decide what matters.
 
+## 🔗 Live Demo
+👉 [Try the interactive demo](https://sruthiamireddy2026.github.io/WhatNxt-app/demo.html)
+
 ## 🗺️ Roadmap
 | Phase | Status | What |
 |-------|--------|------|
